@@ -37,10 +37,23 @@ int main(int argc, char **argv)
 	while(memset(buf, 0, sizeof(buf)), printf("#"), NULL != fgets(buf, 1024, stdin)){
 
 		/* handle command */
+		send(cliSocket, buf, strlen(buf), 0);
+
+		/* command ls */
 		if(strncmp(buf, "ls", 2) == 0){
 
-			send(cliSocket, buf, strlen(buf), 0);
 			cliLs(cliSocket);
+		}
+
+		/* command pwd */
+		else if(strncmp(buf, "pwd", 3) == 0){
+
+			cliPwd(cliSocket);
+		}
+
+		/* command cd */
+		else if(strncmp(buf, "cd", 2) == 0){
+
 		}
 
 	}

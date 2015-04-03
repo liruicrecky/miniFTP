@@ -14,6 +14,14 @@
 #include<sys/types.h>
 #include<sys/stat.h>
 
+typedef struct _msg
+{
+	int _msgLen;
+	char _msg[1024];
+}Msg;
+
+static Msg msgBuf;
+
 /* server command */
 
 void Ls(int sockFd)
@@ -30,7 +38,6 @@ void Ls(int sockFd)
 	DIR *pDIR;
 	struct dirent *dirInfo;
 	struct stat fileStat;
-	char sendBuf[1024];
 
 	if(NULL == (pDIR = opendir(path))){
 
@@ -39,25 +46,48 @@ void Ls(int sockFd)
 
 	chdir(path);
 
-	while(memset(sendBuf, 0, sizeof(sendBuf)), (NULL != (dirInfo = readdir(pDIR)))){
+	while(memset(&msgBuf, 0, sizeof(msgBuf)), (NULL != (dirInfo = readdir(pDIR)))){
 
-		if(strcmp(dirInfo -> d_name, ",") == 0 || strcmp(dirInfo -> d_name, "..") == 0)
+		if(strcmp(dirInfo -> d_name, ".") == 0 || strcmp(dirInfo -> d_name, "..") == 0)
 			continue;
 
 		stat(dirInfo -> d_name, &fileStat);
 
-		sprintf(sendBuf, "%s %lu %c", dirInfo -> d_name, fileStat.st_size, dirInfo -> d_type);
+		sprintf(msgBuf._msg, "%s %lu %c", dirInfo -> d_name, fileStat.st_size, dirInfo -> d_type);
+		msgBuf._msgLen = strlen(msgBuf._msg);
 
-		send(sockFd, sendBuf, strlen(sendBuf), 0);
+		send(sockFd, &msgBuf, sizeof(msgBuf), 0);
 	}
 
 	/* when the end of the dirent */
 
-	memset(sendBuf, 0, sizeof(sendBuf));
-	strcpy(sendBuf, "end");
-	send(sockFd, sendBuf, strlen(sendBuf), 0);
+	memset(&msgBuf, 0, sizeof(msgBuf));
+
+	strcpy(msgBuf._msg, "end");
+	msgBuf._msgLen = strlen(msgBuf._msg);
+
+	send(sockFd, &msgBuf, sizeof(msgBuf), 0);
 }
 
+void Pwd(int sockFd)
+{
+	memset(&msgBuf, 0, sizeof(msgBuf));
+	strcpy(msgBuf._msg, getcwd(NULL, 0));
+	msgBuf._msgLen = strlen(msgBuf._msg);
+
+	send(sockFd, &msgBuf, sizeof(msgBuf), 0);
+
+}
+
+void Cd(int sockFd, char *para)
+{
+	if(strncmp(para, "..", 2) == 0)
+
+		chdir("..");
+	else
+
+		chdir(para);
+}
 
 /* handle command */
 
@@ -69,11 +99,11 @@ void handleCommand(char *command, char *para, int sockFd)
 
 	}else if(strcmp(command, "pwd") == 0){
 
-	//	Pwd(sockFd);
+		Pwd(sockFd);
 
 	}else if(strcmp(command, "cd") == 0){
 
-	//	Cd(sockFd, para);
+		Cd(sockFd, para);
 
 	}else if(strcmp(command, "gets") == 0){
 

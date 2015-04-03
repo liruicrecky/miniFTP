@@ -11,19 +11,26 @@
 #include<stdio.h>
 #include<dirent.h>
 
+typedef struct _msg
+{
+	int _msgLen;
+	char _msg[1024];
+}Msg;
+
+static char buf[1024];
+static char fileName[128];
+static unsigned long fileSize;
+static unsigned char fileType;
+static Msg msgBuf;
+
 void cliLs(int sockFd)
 {
-	char buf[1024];
-	char fileName[128];
-	unsigned long fileSize;
-	unsigned char fileType;
+	while(memset(&msgBuf, 0, sizeof(msgBuf)), 0 != recv(sockFd, &msgBuf, sizeof(msgBuf), 0)){
 
-	while(memset(buf, 0, sizeof(buf)), 0 != recv(sockFd, buf, 1024, 0)){
-
-		if(0 == strncmp(buf, "end", 3))
+		if(0 == strncmp(msgBuf._msg, "end", 3))
 			break;
 
-		sscanf(buf, "%s %lu %c", fileName, &fileSize, &fileType);
+		sscanf(msgBuf._msg, "%s %lu %c", fileName, &fileSize, &fileType);
 
 		if(fileType & DT_DIR)
 			printf("  \033[34m%-10s\033[0m	%-10u\n", fileName, fileSize);
@@ -32,6 +39,13 @@ void cliLs(int sockFd)
 		else
 			printf("  %-10s	%-10u\n", fileName, fileSize);
 	}
+}
+
+void cliPwd(int sockFd)
+{
+	memset(&msgBuf, 0, sizeof(msgBuf));
+	recv(sockFd, &msgBuf, sizeof(msgBuf), 0);
+	printf("server path: %s\n", msgBuf._msg);
 }
 
 
