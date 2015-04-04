@@ -1,19 +1,22 @@
 /*************************************************************************
-	> File Name: server.c
-	> Author: Reacky
-	> Mail:327763224@qq.com 
-	> Created Time: Fri 03 Apr 2015 05:01:20 PM CST
+  > File Name: server.c
+  > Author: Reacky
+  > Mail:327763224@qq.com 
+  > Created Time: Fri 03 Apr 2015 05:01:20 PM CST
  ************************************************************************/
 
 #include"socket.h"
 #include"epoll.h"
 #include"processpool.h"
 
+#include<signal.h>
 #include<stdio.h>
 #include<stdlib.h>
 
 int main(int argc, char **argv)
 {
+	signal(SIGCHLD, recvFork);
+
 	/* check argv */
 
 	if(argc < 3){
@@ -32,56 +35,62 @@ int main(int argc, char **argv)
 
 	/* init process pool */
 
+	int pid;
 	pCHILD pChild = (pCHILD)calloc(1, sizeof(CHILD));
-	makeChild(pChild, processNum);
+	pid = makeChild(pChild, processNum);
 
-	/* init server */
+	if(pid){
+		/* init server */
 
-	int serSocket = initSocket();
+		int serSocket = initSocket();
 
-	if(-1 == serSocket)
-		exit(EXIT_FAILURE);
+		if(-1 == serSocket)
+			exit(EXIT_FAILURE);
 
-	if(-1 == initBind(serSocket,initAddr(ip, port))){
+		if(-1 == initBind(serSocket,initAddr(ip, port))){
 
-		close(serSocket);
-		exit(EXIT_FAILURE);
-	}
+			close(serSocket);
+			exit(EXIT_FAILURE);
+		}
 
-	if(-1 == initListen(serSocket, 10)){
+		if(-1 == initListen(serSocket, 10)){
 
-		close(serSocket);
-		exit(EXIT_FAILURE);
-	}
+			close(serSocket);
+			exit(EXIT_FAILURE);
+		}
 
-	/* init epoll */
+		/* init epoll */
 
-	int serEpoll = initEpoll(1024);
+		int serEpoll = initEpoll(1024);
 
-	if(-1 == serEpoll){
+		if(-1 == serEpoll){
 
-		close(serSocket);
-		exit(EXIT_FAILURE);
-	}
+			close(serSocket);
+			exit(EXIT_FAILURE);
+		}
 
-	/* add server socket to epoll */
+		/* add server socket to epoll */
 
-	if(-1 == epollAdd(serEpoll, serSocket)){
+		if(-1 == epollAdd(serEpoll, serSocket)){
 
-		close(serSocket);
+			close(serSocket);
+			close(serEpoll);
+			exit(EXIT_FAILURE);
+		}
+
+
+		/* start listen to epoll */
+
+		while(true){
+
+			epollLoop(serEpoll, serSocket, processNum, pChild);
+		}
+
 		close(serEpoll);
-		exit(EXIT_FAILURE);
+		close(serSocket);
+
 	}
 
-	/* start listen to epoll */
-
-	while(true){
-
-		epollLoop(serEpoll, serSocket, processNum, pChild);
-	}
-
-	close(serEpoll);
-	close(serSocket);
 	return 0;
 }
 

@@ -13,6 +13,8 @@
 #include<stdlib.h>
 #include<string.h>
 #include<unistd.h>
+#include<wait.h>
+#include<signal.h>
 #include<sys/socket.h>
 #include<sys/types.h>
 
@@ -37,12 +39,14 @@ typedef struct Child
 
 void handleRequest(int sockFd);
 void recvFd(int pairFd, int *fd);
+static void recvFork(int sigNum);
 
 
-void makeChild(pCHILD pChild, int childNum)
+int makeChild(pCHILD pChild, int childNum)
 {
 	int cnt;
 	int index = 0;
+	int clientFd;
 
 	for(cnt = 0;cnt != childNum;++cnt){
 
@@ -58,15 +62,15 @@ void makeChild(pCHILD pChild, int childNum)
 		if(0 == childPid){
 
 			close(sockPair[1]);
-			int clientFd;
 			while(1){
 
 				recvFd(sockPair[0], &clientFd);
 				handleRequest(clientFd);
-				write(sockPair[0], &childPid, sizeof(childPid));
 				close(sockPair[0]);
-				break;
+				printf("A client offline!!\n");
+				return 0;
 			}
+		//	return 0;
 		}
 		
 		close(sockPair[0]);
@@ -75,7 +79,11 @@ void makeChild(pCHILD pChild, int childNum)
 		pChild[index]._stat = FREE;
 		pChild[index]._done = UNDONE;
 		++index;
+	//	signal(SIGCHLD, recvFork);
+	//	return 1;
 	}
+
+	return 1;
 }
 
 void handleRequest(int sockFd)
@@ -91,7 +99,9 @@ void handleRequest(int sockFd)
 	while(true){
 
 		memset(buf, 0, 1024);
-		recv(sockFd, buf, 1024, 0);
+		if(0 == recv(sockFd, buf, 1024, 0))
+			break;
+
 		memset(command, 0, sizeof(command));
 		memset(para, 0, sizeof(para));
 
@@ -101,9 +111,6 @@ void handleRequest(int sockFd)
 		handleCommand(command, para, sockFd);
 
 		printf("client :%s\n", buf);
-
-		if(buf[0] == 'q')
-			break;
 	}
 
 	close(sockFd);
@@ -185,6 +192,15 @@ void recvFd(int pairFd, int *fd)
 	recvmsg(pairFd, &_msg, 0);
 	
 	*fd = *(int *)CMSG_DATA(&_cmsg);
+}
+
+static void recvFork(int sigNum)
+{
+	pid_t pid;
+	pid = waitpid(-1, NULL, WNOHANG);
+//	wait(NULL);
+
+	printf("%lu process recv success!\n", pid);
 }
 
 #endif

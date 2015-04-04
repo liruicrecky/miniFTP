@@ -57,6 +57,11 @@ void epollLoop(int epollFd, int fd, int processNum, pCHILD pChild)
 	memset(readableEpollEvents, 0, sizeof(readableEpollEvents));
 	readable = epoll_wait(epollFd, readableEpollEvents, 1024, -1);
 
+	if(-1 == readable)
+		return;
+
+	printf("%d\n", readable);
+
 	for(cnt = 0;cnt != readable;++cnt){
 
 		if(readableEpollEvents[cnt].data.fd == fd){
