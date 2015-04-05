@@ -203,7 +203,7 @@ int cliPutFiles(int sockFd, char *buf, int flag)
 	/* get file name */
 
 	memset(fileName, 0, sizeof(fileName));
-	sscanf(buf, "%s %s", filePath, fileName);
+	sscanf(buf, "%*s %s",fileName);
 
 	/* get file path */
 	

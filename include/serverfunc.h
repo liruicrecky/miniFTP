@@ -261,8 +261,6 @@ void PutFiles(int sockFd, int firstDownFlag)
 	unsigned long fileSize;
 
 	memset(filePath, 0, sizeof(filePath));
-	printf("%s\n", filePath);
-
 
 	/* if file is a dirent */
 	int isDir;
