@@ -70,7 +70,6 @@ int makeChild(pCHILD pChild, int childNum)
 				printf("A client offline!!\n");
 				return 0;
 			}
-		//	return 0;
 		}
 		
 		close(sockPair[0]);
@@ -79,8 +78,6 @@ int makeChild(pCHILD pChild, int childNum)
 		pChild[index]._stat = FREE;
 		pChild[index]._done = UNDONE;
 		++index;
-	//	signal(SIGCHLD, recvFork);
-	//	return 1;
 	}
 
 	return 1;
@@ -198,7 +195,6 @@ static void recvFork(int sigNum)
 {
 	pid_t pid;
 	pid = waitpid(-1, NULL, WNOHANG);
-//	wait(NULL);
 
 	printf("%lu process recv success!\n", pid);
 }

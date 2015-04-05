@@ -33,53 +33,53 @@ int main(int argc, char **argv)
 	port = atoi(argv[2]);
 	processNum = atoi(argv[3]);
 
+	/* init server */
+
+	int serSocket = initSocket();
+
+	if(-1 == serSocket)
+		exit(EXIT_FAILURE);
+
+	if(-1 == initBind(serSocket,initAddr(ip, port))){
+
+		close(serSocket);
+		exit(EXIT_FAILURE);
+	}
+
+	if(-1 == initListen(serSocket, 10)){
+
+		close(serSocket);
+		exit(EXIT_FAILURE);
+	}
+
+	/* init epoll */
+
+	int serEpoll = initEpoll(1024);
+
+	if(-1 == serEpoll){
+
+		close(serSocket);
+		exit(EXIT_FAILURE);
+	}
+
+	/* add server socket to epoll */
+
+	if(-1 == epollAdd(serEpoll, serSocket)){
+
+		close(serSocket);
+		close(serEpoll);
+		exit(EXIT_FAILURE);
+	}
+
 	/* init process pool */
 
 	int pid;
 	pCHILD pChild = (pCHILD)calloc(1, sizeof(CHILD));
 	pid = makeChild(pChild, processNum);
 
+
+	/* start listen to epoll */
 	if(pid){
-		/* init server */
-
-		int serSocket = initSocket();
-
-		if(-1 == serSocket)
-			exit(EXIT_FAILURE);
-
-		if(-1 == initBind(serSocket,initAddr(ip, port))){
-
-			close(serSocket);
-			exit(EXIT_FAILURE);
-		}
-
-		if(-1 == initListen(serSocket, 10)){
-
-			close(serSocket);
-			exit(EXIT_FAILURE);
-		}
-
-		/* init epoll */
-
-		int serEpoll = initEpoll(1024);
-
-		if(-1 == serEpoll){
-
-			close(serSocket);
-			exit(EXIT_FAILURE);
-		}
-
-		/* add server socket to epoll */
-
-		if(-1 == epollAdd(serEpoll, serSocket)){
-
-			close(serSocket);
-			close(serEpoll);
-			exit(EXIT_FAILURE);
-		}
-
-
-		/* start listen to epoll */
 
 		while(true){
 
@@ -88,8 +88,8 @@ int main(int argc, char **argv)
 
 		close(serEpoll);
 		close(serSocket);
-
 	}
+
 
 	return 0;
 }

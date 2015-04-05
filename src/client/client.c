@@ -56,6 +56,23 @@ int main(int argc, char **argv)
 
 		}
 
+		/* command getfiles */
+		else if(strncmp(buf, "gets", 4) == 0){
+
+			cliGetFiles(cliSocket, 1);
+		}
+
+		/* command putsfiles */
+		else if(strncmp(buf, "puts", 4) == 0){
+
+			cliPutFiles(cliSocket, buf, 1);
+		}
+
+		/* others */
+		else{
+
+			printf("wrong command\n");
+		}
 	}
 
 	close(cliSocket);
