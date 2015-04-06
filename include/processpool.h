@@ -196,7 +196,7 @@ static void recvFork(int sigNum)
 	pid_t pid;
 	pid = waitpid(-1, NULL, WNOHANG);
 
-	printf("%lu process recv success!\n", pid);
+	printf("signal: %d, %d process recv success!\n", sigNum, pid);
 }
 
 #endif

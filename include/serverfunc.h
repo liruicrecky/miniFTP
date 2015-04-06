@@ -8,87 +8,12 @@
 #ifndef __SERVER_FUNC_H__
 #define __SERVER_FUNC_H__
 
-#include<dirent.h>
-#include<string.h>
-#include<unistd.h>
-#include<fcntl.h>
-#include<sys/mman.h>
-#include<sys/types.h>
-#include<sys/stat.h>
+#include"fileoper.h"
 
-typedef struct _msg
-{
-	int _msgLen;
-	char _msg[1024];
-}Msg;
+#include<dirent.h>
 
 static Msg msgBuf;
-
-/********************* File IO *******************************/
-
-unsigned long memSendFile(int sockFd, int fileFd, unsigned long fileSize, Msg msgBuf)
-{
-	char *mapFile;
-
-	mapFile = (char *)mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, fileFd, 0);
-
-	/* send package */
-
-	unsigned long readFileSize;
-	unsigned long totalSendFileSize = 0;
-
-	while(memset(&msgBuf, 0, sizeof(msgBuf)), totalSendFileSize < fileSize){
-
-		readFileSize = 0;
-		while(readFileSize < 1024 && totalSendFileSize < fileSize){
-
-			*(msgBuf._msg + readFileSize) = *(mapFile + totalSendFileSize);
-			++totalSendFileSize;
-			++readFileSize;
-		}
-
-		msgBuf._msgLen = readFileSize;//	if(ifdir)
-		send(sockFd, &msgBuf, sizeof(msgBuf), 0);
-	}
-
-	munmap(mapFile, fileSize);
-
-	return totalSendFileSize;
-}
-
-int sendEnd(int sockFd, Msg msgBuf)
-{
-	memset(&msgBuf, 0, sizeof(msgBuf));
-
-	strcpy(msgBuf._msg, "end");
-	msgBuf._msgLen = strlen(msgBuf._msg);
-
-	send(sockFd, &msgBuf, sizeof(msgBuf), 0);
-
-	return 0;
-}
-
-unsigned long recvFile(int sockFd, char* filePath, unsigned long fileSize, Msg msgBuf)
-{
-	unsigned long recvFileSize = 0;
-	unsigned long writeFileSize;
-
-	int cliFileFd = open(filePath, O_WRONLY | O_CREAT);
-
-	while(recvFileSize < fileSize){
-
-		memset(&msgBuf, 0, sizeof(msgBuf));
-		recv(sockFd, &msgBuf, sizeof(msgBuf), 0);
-
-		recvFileSize += msgBuf._msgLen;
-		write(cliFileFd, msgBuf._msg, msgBuf._msgLen);
-
-	}
-
-	close(cliFileFd);
-}
-
-/********************* File IO *******************************/
+static struct stat fileInfo;
 
 /* server command */
 
@@ -142,7 +67,7 @@ void Pwd(int sockFd)
 
 }
 
-void Cd(int sockFd, char *para)
+void Cd(char *para)
 {
 	if(strncmp(para, "..", 2) == 0)
 
@@ -162,27 +87,30 @@ int GetFiles(int sockFd, char *para, int flag)
 	sprintf(filePath, "%s/%s", getcwd(NULL, 0), para);
 	printf("%s\n", filePath);
 
-	/* if is a dirent */
-
-	struct stat fileStat;
-	unsigned long FileSize;
 	int FileFd;
 
-	stat(filePath, &fileStat);
+	/* init file information */
 
-	if(!S_ISDIR(fileStat.st_mode) && flag){
+	if(-1 == stat(filePath, &fileInfo)){
+
+		printf("init file information failed\n");
+		return 0;
+	}
+
+	/* if is a dirent */
+
+	if(!S_ISDIR(fileInfo.st_mode) && flag){
 
 		/* send file information*/
 
-		sprintf(msgBuf._msg, "%s %lu %d", para, fileStat.st_size, 0);
+		sprintf(msgBuf._msg, "%s %lu %d", para, fileInfo.st_size, 0);
 		msgBuf._msgLen = strlen(msgBuf._msg);
 		send(sockFd, &msgBuf, sizeof(msgBuf), 0);
 		
 		/* send file */
 
-		FileSize = fileStat.st_size;
 		FileFd = open(filePath, O_RDONLY);
-		memSendFile(sockFd, FileFd, FileSize, msgBuf);
+		memSendFile(sockFd, FileFd, fileInfo.st_size, msgBuf);
 		close(FileFd);
 
 		sendEnd(sockFd, msgBuf);
@@ -191,7 +119,7 @@ int GetFiles(int sockFd, char *para, int flag)
 
 	}else if(flag){
 		
-		sprintf(msgBuf._msg, "%s %lu %d", para, fileStat.st_size, 1);
+		sprintf(msgBuf._msg, "%s %lu %d", para, fileInfo.st_size, 1);
 		msgBuf._msgLen = strlen(msgBuf._msg);
 		send(sockFd, &msgBuf, sizeof(msgBuf), 0);
 	}
@@ -214,14 +142,14 @@ int GetFiles(int sockFd, char *para, int flag)
 		if(strcmp(dirInfo -> d_name, ".") == 0 || strcmp(dirInfo -> d_name, "..") == 0)
 			continue;
 
-		stat(dirInfo -> d_name, &fileStat);
-
 		memset(filePath, 0, sizeof(filePath));
 		sprintf(filePath, "%s/%s", getcwd(NULL, 0), dirInfo -> d_name);
 
-		if(dirInfo -> d_type & DT_DIR){
+		stat(dirInfo -> d_name, &fileInfo);
 
-			sprintf(msgBuf._msg, "%s %lu %d", dirInfo -> d_name, fileStat.st_size, 1);
+		if(S_ISDIR(fileInfo.st_mode)){
+
+			sprintf(msgBuf._msg, "%s %lu %d", dirInfo -> d_name, fileInfo.st_size, 1);
 
 			msgBuf._msgLen = strlen(msgBuf._msg);
 			send(sockFd, &msgBuf, sizeof(msgBuf), 0);
@@ -231,13 +159,12 @@ int GetFiles(int sockFd, char *para, int flag)
 			
 		}else{
 
-			sprintf(msgBuf._msg, "%s %lu %d", dirInfo -> d_name, fileStat.st_size, 0);
+			sprintf(msgBuf._msg, "%s %lu %d", dirInfo -> d_name, fileInfo.st_size, 0);
 			send(sockFd, &msgBuf, sizeof(msgBuf), 0);
 
 			FileFd = open(filePath, O_RDONLY);
-			FileSize = fileStat.st_size;
 
-			memSendFile(sockFd, FileFd, FileSize, msgBuf);
+			memSendFile(sockFd, FileFd, fileInfo.st_size, msgBuf);
 			close(FileFd);
 		}
 	}
@@ -327,7 +254,7 @@ void handleCommand(char *command, char *para, int sockFd)
 
 	}else if(strcmp(command, "cd") == 0){
 
-		Cd(sockFd, para);
+		Cd(para);
 
 	}else if(strcmp(command, "gets") == 0){
 

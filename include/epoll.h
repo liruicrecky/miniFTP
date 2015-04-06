@@ -42,16 +42,10 @@ int epollAdd(int epollFd, int fd)
 	return 0;
 }
 
-int epollRemove(int epollFd, int fd)
-{
-
-
-}
-
 void epollLoop(int epollFd, int fd, int processNum, pCHILD pChild)
 {
 	int readable, cnt, index;
-	struct epoll_event epollEvent, readableEpollEvents[1024];
+	struct epoll_event readableEpollEvents[1024];
 	int cliAccept;
 
 	memset(readableEpollEvents, 0, sizeof(readableEpollEvents));

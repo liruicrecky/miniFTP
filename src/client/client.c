@@ -36,8 +36,11 @@ int main(int argc, char **argv)
 
 	while(memset(buf, 0, sizeof(buf)), printf("#"), NULL != fgets(buf, 1024, stdin)){
 
+		buf[strlen(buf)] = 0;
 		/* handle command */
-		send(cliSocket, buf, strlen(buf), 0);
+		send(cliSocket, buf, strlen(buf) - 1, 0);
+
+		printf("strlen: %li, sizeof: %zi\n", strlen(buf), sizeof(buf));
 
 		/* command ls */
 		if(strncmp(buf, "ls", 2) == 0){

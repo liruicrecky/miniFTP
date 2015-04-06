@@ -8,93 +8,17 @@
 #ifndef __CLIENT_FUNC_H__
 #define __CLIENT_FUNC_H__
 
+#include"fileoper.h"
+
 #include<stdio.h>
-#include<unistd.h>
 #include<dirent.h>
-#include<fcntl.h>
 #include<sys/stat.h>
-#include<sys/types.h>
-#include<sys/mman.h>
 
-typedef struct _msg
-{
-	int _msgLen;
-	char _msg[1024];
-
-}Msg;
-
-static char buf[1024];
 static char fileName[128];
 static char filePath[128];
 static unsigned long fileSize;
 static unsigned char fileType;
 static Msg msgBuf;
-
-/***************Client IO********************************/
-
-unsigned long recvFile(int sockFd, char* filePath, unsigned long fileSize, Msg msgBuf)
-{
-	unsigned long recvFileSize = 0;
-	unsigned long writeFileSize;
-
-	int cliFileFd = open(filePath, O_WRONLY | O_CREAT);
-
-	while(recvFileSize < fileSize){
-
-		memset(&msgBuf, 0, sizeof(msgBuf));
-		recv(sockFd, &msgBuf, sizeof(msgBuf), 0);
-
-		recvFileSize += msgBuf._msgLen;
-		write(cliFileFd, msgBuf._msg, msgBuf._msgLen);
-
-	}
-
-	close(cliFileFd);
-}
-
-unsigned long memSendFile(int sockFd, int fileFd, unsigned long fileSize, Msg msgBuf)
-{
-	char *mapFile;
-
-	mapFile = (char *)mmap(NULL, fileSize, PROT_READ, MAP_PRIVATE, fileFd, 0);
-
-	/* send package */
-
-	unsigned long readFileSize;
-	unsigned long totalSendFileSize = 0;
-
-	while(memset(&msgBuf, 0, sizeof(msgBuf)), totalSendFileSize < fileSize){
-
-		readFileSize = 0;
-		while(readFileSize < 1024 && totalSendFileSize < fileSize){
-
-			*(msgBuf._msg + readFileSize) = *(mapFile + totalSendFileSize);
-			++totalSendFileSize;
-			++readFileSize;
-		}
-
-		msgBuf._msgLen = readFileSize;//	if(ifdir)
-		send(sockFd, &msgBuf, sizeof(msgBuf), 0);
-	}
-
-	munmap(mapFile, fileSize);
-
-	return totalSendFileSize;
-}
-
-int sendEnd(int sockFd, Msg msgBuf)
-{
-	memset(&msgBuf, 0, sizeof(msgBuf));
-
-	strcpy(msgBuf._msg, "end");
-	msgBuf._msgLen = strlen(msgBuf._msg);
-
-	send(sockFd, &msgBuf, sizeof(msgBuf), 0);
-
-	return 0;
-}
-
-/***************Client IO********************************/
 
 /* client command */
 
@@ -108,11 +32,11 @@ void cliLs(int sockFd)
 		sscanf(msgBuf._msg, "%s %lu %c", fileName, &fileSize, &fileType);
 
 		if(fileType & DT_DIR)
-			printf("  \033[34m%-10s\033[0m	%-10u\n", fileName, fileSize);
+			printf("  \033[34m%-10s\033[0m	%-10lu\n", fileName, fileSize);
 		else if(fileType & DT_FIFO) 
-			printf("  \033[33m%-10s\033[0m	%-10u\n", fileName, fileSize);
+			printf("  \033[33m%-10s\033[0m	%-10lu\n", fileName, fileSize);
 		else
-			printf("  %-10s	%-10u\n", fileName, fileSize);
+			printf("  %-10s	%-10lu\n", fileName, fileSize);
 	}
 }
 
@@ -144,6 +68,7 @@ void cliGetFiles(int sockFd, int firstDownFlag)
 			printf("%s\n", filePath);
 
 		}
+		fflush(stdin);
 	}
 
 	/* if file is a dirent */
@@ -190,7 +115,6 @@ void cliGetFiles(int sockFd, int firstDownFlag)
 		}else{
 
 			recvFile(sockFd, filePath, fileSize, msgBuf);
-
 		}
 	}
 }
