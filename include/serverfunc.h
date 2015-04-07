@@ -106,11 +106,25 @@ int GetFiles(int sockFd, char *para, int flag)
 		sprintf(msgBuf._msg, "%s %lu %d", para, fileInfo.st_size, 0);
 		msgBuf._msgLen = strlen(msgBuf._msg);
 		send(sockFd, &msgBuf, sizeof(msgBuf), 0);
-		
+
+		/* recv from client if the file already exist */
+
+		unsigned long fileOffset;
+		recv(sockFd, &msgBuf, sizeof(msgBuf), 0);
+		if(msgBuf._msgLen != 0){
+
+			fileOffset = msgBuf._msgLen;
+			printf("%lu\n", fileOffset);
+
+		}else{
+
+			fileOffset = 0;
+		}
+
 		/* send file */
 
 		FileFd = open(filePath, O_RDONLY);
-		memSendFile(sockFd, FileFd, fileInfo.st_size, msgBuf);
+		memSendFile(sockFd, FileFd, fileOffset, fileInfo.st_size, msgBuf);
 		close(FileFd);
 
 		sendEnd(sockFd, msgBuf);
@@ -164,7 +178,7 @@ int GetFiles(int sockFd, char *para, int flag)
 
 			FileFd = open(filePath, O_RDONLY);
 
-			memSendFile(sockFd, FileFd, fileInfo.st_size, msgBuf);
+			memSendFile(sockFd, FileFd, 0, fileInfo.st_size, msgBuf);
 			close(FileFd);
 		}
 	}
@@ -201,7 +215,7 @@ void PutFiles(int sockFd, int firstDownFlag)
 
 		if(!isDir){
 	
-			recvFile(sockFd, filePath, fileSize, msgBuf);
+			recvFile(sockFd, filePath, fileSize, msgBuf, 0);
 			return;
 
 		}else{
@@ -233,7 +247,7 @@ void PutFiles(int sockFd, int firstDownFlag)
 
 		}else{
 
-			recvFile(sockFd, filePath, fileSize, msgBuf);
+			recvFile(sockFd, filePath, fileSize, msgBuf, 0);
 
 		}
 	}

@@ -68,7 +68,6 @@ void cliGetFiles(int sockFd, int firstDownFlag)
 			printf("%s\n", filePath);
 
 		}
-		fflush(stdin);
 	}
 
 	/* if file is a dirent */
@@ -81,8 +80,49 @@ void cliGetFiles(int sockFd, int firstDownFlag)
 		sprintf(filePath, "%s/%s", getcwd(NULL, 0), fileName);
 
 		if(!isDir){
+
+			/* scan dirent if have a same file */
+	
+			DIR *pDIR;
+			struct dirent *dirInfo;
+			struct stat fileStat;
+			int haveFile = 0;
+
+			pDIR = opendir(getcwd(NULL, 0));
+
+			/* init file size */
+
+			msgBuf._msgLen = 0;
+
+			while(NULL != (dirInfo = readdir(pDIR))){
+
+				if(strcmp(dirInfo -> d_name, ".") == 0 || strcmp(dirInfo -> d_name, "..") == 0)
+					continue;
+
+				stat(dirInfo -> d_name, &fileStat);
+
+				if(strcmp(dirInfo -> d_name, fileName) == 0){
+
+					msgBuf._msgLen = fileStat.st_size;
+					fileSize -= fileStat.st_size;
+					haveFile = 1;
+					break;
+				}
+			}
+
+			printf("fileSize: %lu\n", msgBuf._msgLen);
+					
+			send(sockFd, &msgBuf, sizeof(msgBuf), 0);
+
+			if(haveFile){
+
+				recvFile(sockFd, filePath, fileSize, msgBuf, 1);
+				
+			}else{
 			
-			recvFile(sockFd, filePath, fileSize, msgBuf);
+				recvFile(sockFd, filePath, fileSize, msgBuf, 0);
+			}
+
 			return;
 
 		}else{
@@ -114,7 +154,7 @@ void cliGetFiles(int sockFd, int firstDownFlag)
 
 		}else{
 
-			recvFile(sockFd, filePath, fileSize, msgBuf);
+			recvFile(sockFd, filePath, fileSize, msgBuf, 0);
 		}
 	}
 }
@@ -156,7 +196,7 @@ int cliPutFiles(int sockFd, char *buf, int flag)
 
 		FileSize = fileStat.st_size;
 		FileFd = open(filePath, O_RDONLY);
-		memSendFile(sockFd, FileFd, FileSize, msgBuf);
+		memSendFile(sockFd, FileFd, 0, FileSize, msgBuf);
 		close(FileFd);
 
 		sendEnd(sockFd, msgBuf);
@@ -211,7 +251,7 @@ int cliPutFiles(int sockFd, char *buf, int flag)
 			FileFd = open(filePath, O_RDONLY);
 			FileSize = fileStat.st_size;
 
-			memSendFile(sockFd, FileFd, FileSize, msgBuf);
+			memSendFile(sockFd, FileFd, 0, FileSize, msgBuf);
 			close(FileFd);
 		}
 	}

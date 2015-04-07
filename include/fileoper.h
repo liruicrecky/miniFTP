@@ -18,11 +18,11 @@
 
 typedef struct _msg
 {
-	int _msgLen;
+	unsigned long _msgLen;
 	char _msg[1024];
 }Msg;
 
-unsigned long memSendFile(int sockFd, int fileFd, unsigned long fileSize, Msg msgBuf)
+unsigned long memSendFile(int sockFd, int fileFd, unsigned long offset, unsigned long fileSize, Msg msgBuf)
 {
 	char *mapFile;
 
@@ -31,7 +31,7 @@ unsigned long memSendFile(int sockFd, int fileFd, unsigned long fileSize, Msg ms
 	/* send package */
 
 	unsigned long readFileSize;
-	unsigned long totalSendFileSize = 0;
+	unsigned long totalSendFileSize = offset;
 
 	while(memset(&msgBuf, 0, sizeof(msgBuf)), totalSendFileSize < fileSize){
 
@@ -46,6 +46,7 @@ unsigned long memSendFile(int sockFd, int fileFd, unsigned long fileSize, Msg ms
 		msgBuf._msgLen = readFileSize;//	if(ifdir)
 		send(sockFd, &msgBuf, sizeof(msgBuf), 0);
 	}
+
 
 	munmap(mapFile, fileSize);
 
@@ -64,11 +65,20 @@ int sendEnd(int sockFd, Msg msgBuf)
 	return 0;
 }
 
-unsigned long recvFile(int sockFd, char* filePath, unsigned long fileSize, Msg msgBuf)
+unsigned long recvFile(int sockFd, char* filePath,unsigned long fileSize, Msg msgBuf, int flag)
 {
 	unsigned long recvFileSize = 0;
 
-	int cliFileFd = open(filePath, O_WRONLY | O_CREAT);
+	int cliFileFd;
+	
+	if(flag){
+
+		cliFileFd = open(filePath, O_WRONLY | O_APPEND, 0766);
+
+	}else{
+
+		cliFileFd = open(filePath, O_WRONLY | O_CREAT, 0766);
+	}
 
 	while(recvFileSize < fileSize){
 
