@@ -12,6 +12,7 @@
 
 #include<stdlib.h>
 #include<string.h>
+#include<fcntl.h>
 #include<unistd.h>
 #include<wait.h>
 #include<signal.h>
@@ -39,6 +40,7 @@ typedef struct Child
 
 void handleRequest(int sockFd);
 void recvFd(int pairFd, int *fd);
+void setNoneBlock(int sfd);
 static void recvFork(int sigNum);
 
 
@@ -66,13 +68,21 @@ int makeChild(pCHILD pChild, int childNum)
 
 				recvFd(sockPair[0], &clientFd);
 				handleRequest(clientFd);
-				close(sockPair[0]);
+				write(sockPair[0], "done", 4);
 				printf("A client offline!!\n");
-				return 0;
+
+				/*
+				 * return 0 means to exit the process and recv the sources of the
+				 * process when task is done
+				 * note the return 0 means to reuse the process when task is done
+				 */
+
+			//	return 0;
 			}
 		}
 		
 		close(sockPair[0]);
+		setNoneBlock(sockPair[1]);
 		pChild[index]._socketFd = sockPair[1];
 		pChild[index]._childPid = childPid;
 		pChild[index]._stat = FREE;
@@ -93,11 +103,7 @@ void handleRequest(int sockFd)
 
 	char command[10], para[128];
 
-	while(true){
-
-		memset(buf, 0, 1024);
-		if(0 == recv(sockFd, buf, 1024, 0))
-			break;
+	while(memset(buf, 0, sizeof(buf)), 0 != read(sockFd, buf, 1024)){
 
 		memset(command, 0, sizeof(command));
 		memset(para, 0, sizeof(para));
@@ -197,6 +203,13 @@ static void recvFork(int sigNum)
 	pid = waitpid(-1, NULL, WNOHANG);
 
 	printf("signal: %d, %d process recv success!\n", sigNum, pid);
+}
+
+void setNoneBlock(int sfd)
+{
+	int fileFl = fcntl(sfd, F_GETFL);
+	fileFl = fileFl | O_NONBLOCK;
+	fcntl(sfd, F_SETFL, fileFl);
 }
 
 #endif

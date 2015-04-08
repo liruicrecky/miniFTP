@@ -64,7 +64,7 @@ int main(int argc, char **argv)
 
 	/* add server socket to epoll */
 
-	if(-1 == epollAdd(serEpoll, serSocket)){
+	if(-1 == epollAdd(serEpoll, serSocket, EPOLLIN)){
 
 		close(serSocket);
 		close(serEpoll);
@@ -73,9 +73,22 @@ int main(int argc, char **argv)
 
 	/* init process pool */
 
-	int pid;
+	int pid, i;
 	pCHILD pChild = (pCHILD)calloc(1, sizeof(CHILD));
 	pid = makeChild(pChild, processNum);
+
+	/*
+	 * add the local sock of the child process to the
+	 * epoll in order to konw if the task is done
+	 * or want to exit child process when task is done
+	 * note the code below
+	 *
+	 */
+
+	for(i = 0;i != processNum;++i){
+
+		epollAdd(serEpoll, pChild[i]._socketFd, EPOLLIN | EPOLLET);
+	}
 
 
 	/* start listen to epoll */

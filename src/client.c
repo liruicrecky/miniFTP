@@ -1,8 +1,8 @@
 /*************************************************************************
-	> File Name: client.c
-	> Author: Reacky
-	> Mail:327763224@qq.com 
-	> Created Time: Fri 03 Apr 2015 09:17:45 PM CST
+  > File Name: client.c
+  > Author: Reacky
+  > Mail:327763224@qq.com 
+  > Created Time: Fri 03 Apr 2015 09:17:45 PM CST
  ************************************************************************/
 
 #include<stdio.h>
@@ -26,49 +26,67 @@ int main(int argc, char **argv)
 	char buf[1024];
 
 	int cliSocket = initSocket();
-	initConnect(cliSocket, initAddr(argv[1], atoi(argv[2])));
+	if(-1 == initConnect(cliSocket, initAddr(argv[1], atoi(argv[2])))){
+
+		close(cliSocket);
+		exit(EXIT_FAILURE);
+	}
 
 	memset(buf, 0, sizeof(buf));
 	recv(cliSocket, buf, 1024, 0);
 	printf("%s\n", buf);
+	if(buf[0] == 'S'){
+
+		close(cliSocket);
+		exit(EXIT_FAILURE);
+	}
 
 	/* start */
 
 	while(memset(buf, 0, sizeof(buf)), printf("#"), NULL != fgets(buf, 1024, stdin)){
 
-		buf[strlen(buf)] = 0;
+		buf[strlen(buf) - 1] = '\0';
 		/* handle command */
-		send(cliSocket, buf, strlen(buf) - 1, 0);
-
-		printf("strlen: %li, sizeof: %zi\n", strlen(buf), sizeof(buf));
 
 		/* command ls */
-		if(strncmp(buf, "ls", 2) == 0){
+		if(strcmp(buf, "ls") == 0){
 
+			send(cliSocket, buf, strlen(buf), 0);
 			cliLs(cliSocket);
 		}
 
 		/* command pwd */
-		else if(strncmp(buf, "pwd", 3) == 0){
+		else if(strcmp(buf, "pwd") == 0){
 
+			send(cliSocket, buf, strlen(buf), 0);
 			cliPwd(cliSocket);
 		}
 
 		/* command cd */
-		else if(strncmp(buf, "cd", 2) == 0){
+		else if(strncmp(buf, "cd", 2) == 0 && buf[2] == ' '){
 
+			send(cliSocket, buf, strlen(buf), 0);
 		}
 
 		/* command getfiles */
-		else if(strncmp(buf, "gets", 4) == 0){
+		else if(strncmp(buf, "gets", 4) == 0 && buf[4] == ' '){
 
+			send(cliSocket, buf, strlen(buf), 0);
 			cliGetFiles(cliSocket, 1);
 		}
 
 		/* command putsfiles */
-		else if(strncmp(buf, "puts", 4) == 0){
+		else if(strncmp(buf, "puts", 4) == 0 && buf[4] == ' '){
 
+			send(cliSocket, buf, strlen(buf), 0);
 			cliPutFiles(cliSocket, buf, 1);
+		}
+
+		/* command remove */
+		else if(strncmp(buf, "remove", 6) == 0 && buf[6] == ' '){
+
+			send(cliSocket, buf, strlen(buf), 0);
+			cliRemoveFiles(cliSocket);
 		}
 
 		/* others */
@@ -76,6 +94,7 @@ int main(int argc, char **argv)
 
 			printf("wrong command\n");
 		}
+
 	}
 
 	close(cliSocket);

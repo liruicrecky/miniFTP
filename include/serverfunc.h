@@ -37,8 +37,6 @@ void Ls(int sockFd)
 		perror("opendir");
 	}
 
-	chdir(path);
-
 	while(memset(&msgBuf, 0, sizeof(msgBuf)), (NULL != (dirInfo = readdir(pDIR)))){
 
 		if(strcmp(dirInfo -> d_name, ".") == 0 || strcmp(dirInfo -> d_name, "..") == 0)
@@ -55,6 +53,8 @@ void Ls(int sockFd)
 	/* when the end of the dirent */
 
 	sendEnd(sockFd, msgBuf);
+
+	closedir(pDIR);
 }
 
 void Pwd(int sockFd)
@@ -114,7 +114,6 @@ int GetFiles(int sockFd, char *para, int flag)
 		if(msgBuf._msgLen != 0){
 
 			fileOffset = msgBuf._msgLen;
-			printf("%lu\n", fileOffset);
 
 		}else{
 
@@ -126,8 +125,6 @@ int GetFiles(int sockFd, char *para, int flag)
 		FileFd = open(filePath, O_RDONLY);
 		memSendFile(sockFd, FileFd, fileOffset, fileInfo.st_size, msgBuf);
 		close(FileFd);
-
-		sendEnd(sockFd, msgBuf);
 
 		return 0;
 
@@ -189,6 +186,7 @@ int GetFiles(int sockFd, char *para, int flag)
 	/* when the end of the dirent */
 
 	sendEnd(sockFd, msgBuf);
+	closedir(pDIR);
 
 	return 0;
 }
@@ -254,6 +252,69 @@ void PutFiles(int sockFd, int firstDownFlag)
 
 }
 
+void Remove(int sockFd, char *para, int flag)
+{
+	char buf[50];
+	/* if a dirent or a file */
+	struct stat fileStat;
+
+	stat(para, &fileStat);
+
+	if(!S_ISDIR(fileStat.st_mode) && flag){
+
+		recv(sockFd, buf, 50, 0);
+		if(buf[0] == 'y'){
+
+			unlink(para);
+		}
+
+		return;
+
+	}else if(flag){
+
+		recv(sockFd, buf, 50, 0);
+
+		if(buf[0] == 'n'){
+
+			return;
+		}
+	}
+
+	DIR *pDIR;
+	struct dirent *dirInfo;
+
+	pDIR = opendir(para);
+
+	chdir(para);
+
+	while(NULL != (dirInfo = readdir(pDIR))){
+
+		if(strcmp(dirInfo -> d_name, ".") == 0 || strcmp(dirInfo -> d_name, "..") == 0)
+			continue;
+	
+		stat(dirInfo -> d_name, &fileStat);
+
+		if(S_ISDIR(fileStat.st_mode)){
+
+			Remove(sockFd, dirInfo -> d_name, 0);
+			chdir("..");
+			rmdir(dirInfo -> d_name);
+			
+		}else{
+
+			unlink(dirInfo -> d_name);
+		}
+	}
+
+	if(flag)
+		chdir("..");
+
+	rmdir(para);
+
+	closedir(pDIR);
+
+}
+
 /*********************** handle command **************************/
 
 void handleCommand(char *command, char *para, int sockFd)
@@ -280,7 +341,7 @@ void handleCommand(char *command, char *para, int sockFd)
 
 	}else if(strcmp(command, "remove") == 0){
 
-		//	Remove(sockFd, para);
+		Remove(sockFd, para, 1);
 	}
 
 }

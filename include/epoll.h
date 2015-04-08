@@ -12,6 +12,7 @@
 
 #include"processpool.h"
 
+
 int initEpoll(int num)
 {
 	int _epoll = epoll_create(num);
@@ -25,12 +26,12 @@ int initEpoll(int num)
 	return _epoll;
 }
 
-int epollAdd(int epollFd, int fd)
+int epollAdd(int epollFd, int fd, int mode)
 {
 	struct epoll_event epollEvent;	
 	memset(&epollEvent, 0, sizeof(epollEvent));
 
-	epollEvent.events = EPOLLIN;
+	epollEvent.events = mode;
 	epollEvent.data.fd = fd;
 
 	if(-1 == epoll_ctl(epollFd, EPOLL_CTL_ADD, fd, &epollEvent)){
@@ -46,7 +47,9 @@ void epollLoop(int epollFd, int fd, int processNum, pCHILD pChild)
 {
 	int readable, cnt, index;
 	struct epoll_event readableEpollEvents[1024];
-	int cliAccept;
+	struct sockaddr_in cliAddr;
+	int cliAccept, i;
+	socklen_t cliAddrLen = sizeof(struct sockaddr_in);
 
 	memset(readableEpollEvents, 0, sizeof(readableEpollEvents));
 	readable = epoll_wait(epollFd, readableEpollEvents, 1024, -1);
@@ -54,14 +57,13 @@ void epollLoop(int epollFd, int fd, int processNum, pCHILD pChild)
 	if(-1 == readable)
 		return;
 
-	printf("%d\n", readable);
-
 	for(cnt = 0;cnt != readable;++cnt){
 
 		if(readableEpollEvents[cnt].data.fd == fd){
 
-			cliAccept = accept(readableEpollEvents[cnt].data.fd, NULL, NULL);
-			printf("A new client online\n");
+			memset(&cliAddr, 0, sizeof(cliAddr));
+			cliAccept = accept(readableEpollEvents[cnt].data.fd, (struct sockaddr *)&cliAddr, &cliAddrLen);
+			printf("A new client %s:%d online\n", inet_ntoa(cliAddr.sin_addr), ntohs(cliAddr.sin_port));
 
 			for(index = 0;index != processNum;++index){
 
@@ -70,12 +72,30 @@ void epollLoop(int epollFd, int fd, int processNum, pCHILD pChild)
 			}
 			if(index == processNum){
 
+				char msg[50];
+				strcpy(msg, "Server is full! try again later!");
 				printf("full client!\n");
+				write(cliAccept, msg, sizeof(msg));
 				continue;
 			}
 
 			sendFd(pChild[index]._socketFd, cliAccept);
 			pChild[index]._stat = BUSY;
+
+		}else{
+
+			/*
+			 * when the task is done then reuse the process
+			 * or want to exit the child process, to node these code below
+			 */
+
+			for(i = 0;i != processNum;++i){
+
+				if(pChild[i]._socketFd == readableEpollEvents[cnt].data.fd)
+					break;
+			}
+
+			pChild[i]._stat = FREE;
 		}
 	}
 }

@@ -24,7 +24,7 @@ static Msg msgBuf;
 
 void cliLs(int sockFd)
 {
-	while(memset(&msgBuf, 0, sizeof(msgBuf)), 0 != recv(sockFd, &msgBuf, sizeof(msgBuf), 0)){
+	while(memset(&msgBuf, 0, sizeof(msgBuf)), recv(sockFd, &msgBuf, sizeof(msgBuf), 0)){
 
 		if(0 == strncmp(msgBuf._msg, "end", 3))
 			break;
@@ -55,7 +55,8 @@ void cliGetFiles(int sockFd, int firstDownFlag)
 	if(firstDownFlag){
 
 		printf("Download path(use absolute path)(input 0 for current directory):");
-		scanf("%s", filePath);
+		fgets(filePath, 128, stdin);
+		setbuf(stdin, NULL);
 
 		if(filePath[0] != '0'){
 
@@ -109,6 +110,8 @@ void cliGetFiles(int sockFd, int firstDownFlag)
 					break;
 				}
 			}
+
+			closedir(pDIR);
 
 			printf("fileSize: %lu\n", msgBuf._msgLen);
 					
@@ -262,8 +265,17 @@ int cliPutFiles(int sockFd, char *buf, int flag)
 	/* when the end of the dirent */
 
 	sendEnd(sockFd, msgBuf);
+	closedir(pDIR);
 
 	return 0;
+}
+
+void cliRemoveFiles(int sockFd)
+{
+	char buf[5];
+	printf("Sure to remove?(y/n): ");
+	fgets(buf, 5, stdin);
+	send(sockFd, buf, strlen(buf), 0);
 }
 
 
