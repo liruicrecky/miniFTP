@@ -15,6 +15,8 @@
 
 int main(int argc, char **argv)
 {
+	/* recv child process */
+
 	signal(SIGCHLD, recvFork);
 
 	/* check argv */
@@ -92,6 +94,7 @@ int main(int argc, char **argv)
 
 
 	/* start listen to epoll */
+
 	if(pid){
 
 		while(true){
