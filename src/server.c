@@ -17,6 +17,7 @@ int main(int argc, char **argv)
 {
 	/* recv child process */
 
+
 	signal(SIGCHLD, recvFork);
 
 	/* check argv */
