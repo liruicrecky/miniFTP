@@ -45,7 +45,10 @@ int main(int argc, char **argv)
 
 	while(memset(buf, 0, sizeof(buf)), printf("#"), NULL != fgets(buf, 1024, stdin)){
 
+		/* del '\n' */
+
 		buf[strlen(buf) - 1] = '\0';
+
 		/* handle command */
 
 		/* command ls */
